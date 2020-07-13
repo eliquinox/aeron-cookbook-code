@@ -25,3 +25,5 @@ include 'aeron-core'
 include 'cluster-core'
 include 'theory'
 include 'agrona'
+include 'exchange-core'
+

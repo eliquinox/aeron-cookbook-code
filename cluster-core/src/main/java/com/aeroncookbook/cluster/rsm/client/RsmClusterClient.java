@@ -98,6 +98,7 @@ public class RsmClusterClient implements EgressListener
         short eiderId = getEiderId(buffer, offset);
         if (eiderId == CurrentValueEvent.EIDER_ID)
         {
+            // populate the buffer
             event.setUnderlyingBuffer(buffer, offset);
             if (event.readCorrelation() == MESSAGES_TO_SEND)
             {

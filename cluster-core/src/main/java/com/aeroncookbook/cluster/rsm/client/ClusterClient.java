@@ -44,7 +44,6 @@ public class ClusterClient
             new MediaDriver.Context()
                 .threadingMode(ThreadingMode.SHARED)
                 .dirDeleteOnStart(true)
-                .dirDeleteOnStart(true)
                 .errorHandler(Throwable::printStackTrace)
                 .aeronDirectoryName(aeronDirName)
         );
