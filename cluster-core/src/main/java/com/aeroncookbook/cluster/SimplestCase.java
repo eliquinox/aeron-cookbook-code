@@ -137,6 +137,7 @@ public class SimplestCase
         start(false);
         connectClient();
         sendMessage(1, 4);
+        System.out.println("On message");
         pollEgress();
         ContinueBarrier barrier = new ContinueBarrier("continue");
         barrier.await();

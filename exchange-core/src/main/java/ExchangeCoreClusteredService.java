@@ -1,5 +1,6 @@
-import com.aeroncookbook.cluster.rsm.gen.Snapshot;
+import exchange.core2.core.ExchangeApi;
 import exchange.core2.core.ExchangeCore;
+import exchange.core2.core.common.config.ExchangeConfiguration;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.cluster.codecs.CloseReason;
@@ -7,71 +8,87 @@ import io.aeron.cluster.service.ClientSession;
 import io.aeron.cluster.service.Cluster;
 import io.aeron.cluster.service.ClusteredService;
 import io.aeron.logbuffer.Header;
-import lombok.extern.slf4j.Slf4j;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableDirectByteBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.IdleStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Slf4j
+
 public class ExchangeCoreClusteredService implements ClusteredService {
+    private final Logger log = LoggerFactory.getLogger(ExchangeCoreClusteredService.class);
 
-    private final ExchangeCore exchangeCore;
-    private final ExchangeCoreDemuxer exchangeCoreDemuxer;
+    public static int USER_ID_OFFSET = 0;
 
-    public ExchangeCoreClusteredService() {
-        this.exchangeCore = ExchangeCore.builder().build();
-        this.exchangeCoreDemuxer = new ExchangeCoreDemuxer(exchangeCore);
-    }
+    private final MutableDirectBuffer egressMessageBuffer = new ExpandableDirectByteBuffer();
+
+    private Cluster cluster;
+    private IdleStrategy idleStrategy;
+    private final ExchangeCore exchangeCore = ExchangeCore.builder()
+            .exchangeConfiguration(ExchangeConfiguration.defaultBuilder().build())
+            .resultsConsumer((cmd, l) -> log.info("{}", cmd))
+            .build();
+
+    private final ExchangeApi exchangeApi = exchangeCore.getApi();
+
 
     @Override
     public void onStart(Cluster cluster, Image snapshotImage) {
-        if (snapshotImage != null) {
-            log.info("loading snapshot");
-            snapshotImage.poll(exchangeCoreDemuxer, 1);
-        }
+        System.out.println("Cluster service started");
+        this.cluster = cluster;
+        this.idleStrategy = cluster.idleStrategy();
     }
 
     @Override
     public void onSessionOpen(ClientSession session, long timestamp) {
-        log.info("Cluster Client Session opened");
+
     }
 
     @Override
     public void onSessionClose(ClientSession session, long timestamp, CloseReason closeReason) {
-        log.info("Cluster Client Session closed");
+
     }
 
     @Override
-    public void onSessionMessage(ClientSession session, long timestamp, DirectBuffer buffer, int offset,
-                                 int length, Header header) {
-        log.info("Received message with buffer {}", buffer);
-        exchangeCoreDemuxer.setSession(session);
-        exchangeCoreDemuxer.onFragment(buffer, offset, length, header);
+    public void onSessionMessage(
+            ClientSession session,
+            long timestamp,
+            DirectBuffer buffer,
+            int offset,
+            int length,
+            Header header
+    ) {
+        log.info("Session message: {}", buffer);
+        int userId = buffer.getInt(offset + USER_ID_OFFSET);
+        exchangeApi.createUser(userId, cmd -> log.info("Processed command {}", cmd));
+
+        if (session != null) {
+            egressMessageBuffer.putLong(0, 1);
+            log.info("Responding with {}", egressMessageBuffer);
+            while (session.offer(egressMessageBuffer, 0, 8) < 0) {
+                idleStrategy.idle();
+            }
+        }
     }
 
     @Override
     public void onTimerEvent(long correlationId, long timestamp) {
-        log.info("Cluster Node timer firing");
+        System.out.println("In onTimerEvent: " + correlationId + " : " + timestamp);
     }
 
     @Override
     public void onTakeSnapshot(ExclusivePublication snapshotPublication) {
-        log.info("taking snapshot");
-        final ExpandableDirectByteBuffer buffer = new ExpandableDirectByteBuffer(Snapshot.BUFFER_LENGTH);
-
-        // get the current exchange state and set push into buffer here
-        // exchangeCore.takeSnapshot(buffer)
-
-        // offer the snapshot to the publication
-        snapshotPublication.offer(buffer, 0, Snapshot.BUFFER_LENGTH);
+        System.out.println("In onTakeSnapshot: " + snapshotPublication);
     }
 
     @Override
     public void onRoleChange(Cluster.Role newRole) {
-        log.info("Cluster Node is in role {}", newRole.name());
+        System.out.println("In onRoleChange: " + newRole);
     }
 
     @Override
     public void onTerminate(Cluster cluster) {
-        log.info("Cluster Node is terminating");
+        System.out.println("In onTerminate: " + cluster);
     }
 }
