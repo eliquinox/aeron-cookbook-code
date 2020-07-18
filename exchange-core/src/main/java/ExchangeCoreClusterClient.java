@@ -37,7 +37,7 @@ public class ExchangeCoreClusterClient implements EgressListener {
     }
 
     private void sendCreateUserRequest(AeronCluster cluster) {
-        createUserBuffer.putInt(ExchangeCoreClusteredService.USER_ID_OFFSET, 0);
+        createUserBuffer.putInt(ExchangeCoreClusteredService.USER_ID_OFFSET, 234);
         log.info("Sending create user request: {}", createUserBuffer);
         cluster.offer(createUserBuffer, 0, BitUtil.SIZE_OF_INT);
     }

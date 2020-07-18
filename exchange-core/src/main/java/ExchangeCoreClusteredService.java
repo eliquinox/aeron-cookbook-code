@@ -38,6 +38,7 @@ public class ExchangeCoreClusteredService implements ClusteredService {
         System.out.println("Cluster service started");
         this.cluster = cluster;
         this.idleStrategy = cluster.idleStrategy();
+        exchangeCore.startup();
     }
 
     @Override
